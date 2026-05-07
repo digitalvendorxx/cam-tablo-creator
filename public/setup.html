@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="tr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kurulum - Cam Tablo Creator</title>
+<style>
+  :root { color-scheme: light dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin:0; min-height:100vh;
+    font-family:-apple-system,Segoe UI,Roboto,sans-serif;
+    background:#0b0b0d; color:#e7e7ea;
+    display:grid; place-items:center; padding:32px;
+  }
+  .card {
+    width:100%; max-width:540px; background:#16161a; border:1px solid #2a2a31;
+    border-radius:14px; padding:32px; box-shadow:0 20px 60px rgba(0,0,0,.5);
+  }
+  h1 { margin:0 0 4px; font-size:22px; }
+  .sub { color:#8e8e96; font-size:13px; margin-bottom:24px; line-height:1.5; }
+  .step { font-size:11px; color:#6c5ce7; text-transform:uppercase; letter-spacing:.08em; margin-bottom:8px; }
+  label { display:block; font-size:12px; color:#b0b0b8; margin:18px 0 6px; text-transform:uppercase; letter-spacing:.04em; }
+  label .hint { display:block; text-transform:none; color:#6e6e76; font-size:11px; margin-top:2px; }
+  label .hint a { color:#8aa9ff; }
+  input {
+    width:100%; padding:11px 13px; border-radius:8px; border:1px solid #2a2a31;
+    background:#0b0b0d; color:#e7e7ea; font-size:13px; font-family:ui-monospace,SFMono-Regular,monospace;
+  }
+  input:focus { outline:none; border-color:#6c5ce7; }
+  button {
+    width:100%; margin-top:24px; padding:12px; border-radius:8px; border:none;
+    background:#6c5ce7; color:white; font-size:14px; font-weight:600; cursor:pointer;
+  }
+  button:disabled { opacity:.5; cursor:not-allowed; }
+  .msg { margin-top:16px; padding:12px 14px; border-radius:8px; font-size:13px; line-height:1.5; }
+  .msg.err { background:#2a1417; border:1px solid #5a1f26; color:#ff8a8a; }
+  .msg.ok  { background:#14271b; border:1px solid #1f5a2a; color:#8aff9a; }
+  .meta { margin-top:24px; padding-top:16px; border-top:1px solid #2a2a31; font-size:11px; color:#6e6e76; line-height:1.5; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="step">Adim 2 / 2 - Kurulum</div>
+  <h1>API Anahtarlari</h1>
+  <div class="sub">
+    Cam Tablo Creator AI tabanli icerik uretimi icin 2 API anahtari kullaniyor.
+    Anahtarlari asagidaki linklerden ucretsiz olusturup yapistir.
+  </div>
+
+  <form id="form" autocomplete="off">
+    <label>
+      Gemini API Key
+      <span class="hint">
+        <a href="https://aistudio.google.com/apikey" target="_blank">aistudio.google.com/apikey</a>
+        → Create API Key (ucretsiz)
+      </span>
+    </label>
+    <input id="gemini" type="text" required placeholder="AIza..." autocapitalize="off" autocorrect="off" spellcheck="false">
+
+    <label>
+      OpenRouter API Key
+      <span class="hint">
+        <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>
+        → Create Key (kredi yuklemen gerekecek, ~$5)
+      </span>
+    </label>
+    <input id="openrouter" type="text" required placeholder="sk-or-v1-..." autocapitalize="off" autocorrect="off" spellcheck="false">
+
+    <label>
+      Etsy Sablon Listing ID
+      <span class="hint">
+        Etsy magazandaki sablon olarak kullanilacak listing'in URL'sindeki numara
+        (orn. etsy.com/listing/<b>1234567890</b>/...)
+      </span>
+    </label>
+    <input id="template" type="text" required pattern="[0-9]+" placeholder="1234567890">
+
+    <button type="submit" id="submit">Kaydet ve Devam Et</button>
+  </form>
+
+  <div id="msg"></div>
+
+  <div class="meta">
+    Anahtarlar bu makinede <code style="color:#b0b0b8">.env</code> dosyasina yazilir.
+    Internete veya flowiqa.com'a GONDERILMEZ. Tum AI cagrilar dogrudan Google + OpenRouter'a gider, faturayi sen odersin.
+  </div>
+</div>
+
+<script>
+const form = document.getElementById('form');
+const submit = document.getElementById('submit');
+const msg = document.getElementById('msg');
+
+const errMap = {
+  invalid_gemini_key: 'Gemini key formati gecersiz. AIza ile baslamali.',
+  invalid_openrouter_key: 'OpenRouter key formati gecersiz. sk-or-v1- ile baslamali.',
+  invalid_template_id: 'Etsy template ID sadece rakam icermeli.',
+  setup_failed: 'Kayit basarisiz. Tekrar dene.',
+};
+
+function show(kind, text) {
+  msg.className = 'msg ' + kind;
+  msg.textContent = text;
+}
+
+form.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  submit.disabled = true;
+  msg.textContent = '';
+
+  const gemini = document.getElementById('gemini').value.trim();
+  const openrouter = document.getElementById('openrouter').value.trim();
+  const template = document.getElementById('template').value.trim();
+
+  if (!gemini.startsWith('AIza')) { show('err', errMap.invalid_gemini_key); submit.disabled = false; return; }
+  if (!openrouter.startsWith('sk-or-v1-')) { show('err', errMap.invalid_openrouter_key); submit.disabled = false; return; }
+  if (!/^\d+$/.test(template)) { show('err', errMap.invalid_template_id); submit.disabled = false; return; }
+
+  try {
+    const r = await fetch('/api/setup', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gemini, openrouter, template }),
+    });
+    const j = await r.json();
+    if (r.ok) {
+      show('ok', 'Kayit basarili. Sunucu yeniden baslatiliyor...');
+      setTimeout(() => location.href = '/', 2000);
+    } else {
+      show('err', errMap[j.error] || ('Hata: ' + (j.error || r.status)));
+      submit.disabled = false;
+    }
+  } catch (err) {
+    show('err', 'Baglanti hatasi: ' + err.message);
+    submit.disabled = false;
+  }
+});
+</script>
+</body>
+</html>

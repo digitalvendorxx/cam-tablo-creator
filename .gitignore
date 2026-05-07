@@ -1,0 +1,29 @@
+node_modules/
+.env
+.env.*
+!.env.example
+
+# user-generated assets
+designs/
+output/
+mockups/
+uploads/
+templates/
+
+# runtime data (jobs, batches, browser profile)
+data/
+logs/
+reports/
+mockup-debug.log
+
+# build artefacts kept under dist/ are committed for end-users; only the bak slips
+dist/*.bak
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# secrets
+config.json
